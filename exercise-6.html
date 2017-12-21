@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hello React</title>
+    <script src="https://unpkg.com/react@latest/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@latest/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/babel-standalone@6.15.0/babel.min.js"></script>
+    <style>
+      @import url('https://fonts.googleapis.com/css?family=Montserrat');
+      body {
+        font-family: 'Montserrat', sans-serif;
+        font-size: 24px;
+        display:flex;
+        justify-content: center;
+      }
+      h1 small {
+        font-size: .8em;
+        color: #666;
+        font-style: italic;
+      }
+      table{
+        width: 100%;
+        border-spacing: 0;
+      }
+      td {
+        padding: .25em;
+      }
+      table > thead > tr > td {
+        border-bottom: 1px solid #666;
+      }
+      table > tbody > tr:nth-child(even){
+        background: #eee;
+      }
+      input, button{
+        font-size: inherit;
+        font-family: inherit;
+      }
+      form{
+        display: flex;
+      }
+      form > input[type='text']{
+        flex-grow: 1;
+        margin-right:.5em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Get It Done! <br/><small>For the truly industrious</small></h1>
+      <div id="root">
+        <table>
+          <thead>
+            <tr><td>Task</td><td>Done?</td></tr>
+          </thead>
+          <tbody>
+            <!-- Show while loading -->
+            <tr>
+              <td colspan='2'>Loading Tasks...</td>
+            </tr>
+            <!-- Show Results -->
+            <tr>
+              <td>Walk Dog</td><td><input type='checkbox' checked/></td>
+            </tr>
+            <tr>
+              <td>Buy Bread</td><td><input type='checkbox'/></td>
+            </tr>
+          </tbody>
+        </table>
+        <hr/>
+        <form>
+          <input type='text' placeholder="Write Task Name"/>
+          <button type='submit'>Add</button>
+        </form>
+      </div>
+    </div>
+    <script src='./rando.js'></script>
+    <script src='./delay.js'></script>
+    <script src="./task-svc.js"></script>
+    <script type="text/babel">
+    const {
+      // Gets all current tasks.
+      // () => Promise<Tasks[]>
+      getTasks, 
+
+      // Creates a new task, adding an id and returning it.
+      // (taskName:String) => Promise<Task>
+      addTask, 
+
+      // Finds a task by id and switches its "finished" flag
+      // (id:String) => Promise<Task>
+      toggleTask,
+    } = taskSvc;
+
+    const root = document.getElementById('root');
+
+    // ANSWER
+    class TodoListItem extends React.Component {
+      render(){
+        return (
+          <tr>
+            <td>{this.props.taskName}</td>
+            <td>
+              <input 
+                type='checkbox'
+                onChange={this.props.toggleFinished}
+                checked={this.props.finished}/>
+            </td>
+          </tr>);
+      }
+    }
+
+    class AddTodo extends React.Component {
+      render(){
+        const onSubmit = (e) => {
+          e.preventDefault();
+          const taskNameInput = e.target.elements.taskName;
+          this.props.addTodo(taskNameInput.value);
+          taskNameInput.value = '';
+        }
+        return (
+        <form onSubmit={onSubmit}>
+          <input name='taskName' type='text' placeholder="Write Task Name"/>
+          <button type='submit'>Add</button>
+        </form>);
+      }
+    }
+    
+    class TodoList extends React.Component {
+      constructor(props){
+        super(props);
+        this.state = { loading: true };
+        this.addTodo = this.addTodo.bind(this);
+      }
+      componentDidMount(){
+        getTasks()
+          .then((tasks) => {
+            this.setState({
+              loading: false,
+              tasks
+            });
+          });
+      }
+      addTodo(taskName){
+        this.setState({loading: true});
+        addTask(taskName)
+          .then(newTask => {
+            const tasks = this.state.tasks.concat(newTask);
+            this.setState({ tasks, loading: false});
+          });
+      }
+      toggleFinished(taskId){
+        this.setState({loading: true});
+        toggleTask(taskId)
+          .then(toggledTask => {
+            const tasks = this.state.tasks
+              .map(task => task.id === taskId ? toggledTask : task);
+            this.setState({tasks, loading: false});
+          });
+      }
+      render(){
+
+        const todoListItems = this.state.loading ? 
+          (<tr>
+            <td colSpan='2'>Loading Tasks...</td>
+          </tr>) :
+          this.state.tasks.map((task) => (
+            <TodoListItem  
+              key={task.id} 
+              taskName={task.taskName} 
+              finished={task.finished}
+              toggleFinished={() => { this.toggleFinished(task.id); }}/>));
+        
+        return (
+          <div>
+            <table>
+              <thead>
+                <tr><td>Task</td><td>Done?</td></tr>
+              </thead>
+              <tbody>
+                {todoListItems}
+              </tbody>
+            </table>
+            <hr/>
+            {this.state.loading || <AddTodo addTodo={this.addTodo}/>}
+          </div>);
+      }
+    }
+
+    ReactDOM.render(
+      <TodoList/>,
+      root
+    );
+
+    </script>
+  </body>
+</html>
